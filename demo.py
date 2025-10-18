@@ -129,11 +129,12 @@ class DemoApp:
 
     def _build_dynamic_section(self) -> None:
         frame = ttk.LabelFrame(self.root, text="Dynamic TextPanel controls")
-        frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        frame.pack(fill="both", padx=10, pady=(0, 10))
         frame.rowconfigure(0, weight=1)
         # Use callable footer to create custom widget
         self.dynamic_panel = TextPanel(frame, text=DYNAMIC_CONTENT[0], rich_text=True, footer=self._create_custom_footer, include_scrollbar=False)
         self.dynamic_panel.pack(fill="both", expand=True, padx=10, pady=10)
+        self.dynamic_panel.textbox.config(height=6)
         buttons = ttk.Frame(frame)
         buttons.pack(pady=5, anchor="s")
         ttk.Button(buttons, text="Next content", command=self._next_dynamic_content).pack(side="left", padx=5)

@@ -356,9 +356,21 @@ class _Mixin:
 
 class TextWindow(_Mixin, tk.Toplevel):
     """Toplevel window for displaying formatted or plain text."""
-    def __init__(self, master: Optional[Any] = None, title: Optional[str] = "Text", geometry: Optional[str] = "400x700", text: Optional[Union[str, Dict[Any, Any], List[Any], Tuple[Any, ...]]] = None, rich_text: bool = True, footer: Optional[Union[str, Callable[[Any], Any]]] = "", include_scrollbar: bool = True) -> None:
+    def __init__(
+        self,
+        master: Optional[Any] = None,
+        text: Optional[Union[str, Dict[Any, Any], List[Any], Tuple[Any, ...]]] = None,
+        rich_text: bool = True,
+        footer: Optional[Union[str, Callable[[Any], Any]]] = "",
+        include_scrollbar: bool = True,
+        title: Optional[str] = "Text",
+        geometry: Optional[str] = "400x700",
+        icon: Optional[Any] = None,
+        **kwargs: Any
+    ) -> None:
         """Initialize TextWindow with configurable parameters."""
-        super().__init__(master=master)
+        super().__init__(master=master, **kwargs)
+        self.set_window_icon(icon)
         self.title(title if title is not None else "Text")
         self.minsize(200, 200)
         if geometry is not None:
@@ -371,15 +383,43 @@ class TextWindow(_Mixin, tk.Toplevel):
         self.withdraw()
 
 
+    def set_window_icon(self, icon):
+        if icon is not None:
+            try:
+                if hasattr(icon, "tk") and hasattr(icon, "width"):
+                    self.iconphoto(False, icon)
+                else:
+                    self.iconbitmap(icon)
+            except Exception:
+                pass
+
+
     def _setup_widgets(self, footer: Optional[Union[str, Callable[[Any], Any]]] = "", include_scrollbar: bool = True) -> None:
         """Set up window widgets."""
         self._setup_text_widgets(footer=footer, include_scrollbar=include_scrollbar)
 
 
-    def open_window(self, title: Optional[str] = None, geometry: Optional[str] = None, text: Optional[Union[str, Dict[Any, Any], List[Any], Tuple[Any, ...]]] = None, rich_text: bool = True, include_scrollbar: bool = True) -> None:
+    def open_window(
+        self,
+        text: Optional[Union[str, Dict[Any, Any], List[Any], Tuple[Any, ...]]] = None,
+        rich_text: bool = True,
+        footer: Optional[Union[str, Callable[[Any], Any]]] = "",
+        include_scrollbar: bool = True,
+        title: Optional[str] = None,
+        geometry: Optional[str] = None,
+        icon: Optional[Any] = None,
+        **kwargs: Any
+    ) -> None:
         """Show window and update title, geometry, and content."""
         self._update_window(title, geometry)
-        self.configure(text=text, rich_text=rich_text, include_scrollbar=include_scrollbar)
+        self.configure(
+            text=text,
+            rich_text=rich_text,
+            footer=footer,
+            include_scrollbar=include_scrollbar,
+            **kwargs
+        )
+        self.set_window_icon(icon)
         self.deiconify()
         self._center_window()
         self.lift()
@@ -422,7 +462,15 @@ class TextWindow(_Mixin, tk.Toplevel):
 
 class TextPanel(_Mixin, ttk.Frame):
     """Embeddable panel for displaying formatted or plain text."""
-    def __init__(self, master: Optional[Any] = None, text: Optional[Union[str, Dict[Any, Any], List[Any], Tuple[Any, ...]]] = None, rich_text: bool = True, footer: Optional[Union[str, Callable[[Any], Any]]] = None, include_scrollbar: bool = True, **kwargs: Any) -> None:
+    def __init__(
+            self,
+            master: Optional[Any] = None,
+            text: Optional[Union[str, Dict[Any, Any], List[Any], Tuple[Any, ...]]] = None,
+            rich_text: bool = True,
+            footer: Optional[Union[str, Callable[[Any], Any]]] = None,
+            include_scrollbar: bool = True,
+            **kwargs: Any
+        ) -> None:
         """Initialize TextPanel."""
         kwargs = dict(kwargs)
         style = kwargs.pop("style", None)

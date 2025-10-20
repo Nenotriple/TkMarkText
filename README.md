@@ -7,6 +7,8 @@ Provides embeddable panels and pop-up windows with Markdown-like formatting.
 
 ## Installation
 
+Tested on Python 3.10
+
 You can install TkMarkText using one of the following methods:
 
 ### Method (A)
@@ -46,6 +48,7 @@ Copy `tkmarktext/` into your project.
 - `rich_text`: Enable Markdown-like formatting (default: `True`).
 - `footer`: String or callable for footer widget.
 - `include_scrollbar`: Show scrollbar (default: `True`).
+- `**kwargs`: Additional `ttk.Frame` options (e.g., `style`, `background`).
 
 #### `TextWindow` Parameters
 
@@ -56,6 +59,16 @@ Copy `tkmarktext/` into your project.
 - `rich_text`: Enable Markdown-like formatting (default: `True`).
 - `footer`: String or callable for footer widget.
 - `include_scrollbar`: Show scrollbar (default: `True`).
+- `icon`: Window icon (optional).
+- `**kwargs`: Additional `tk.Toplevel` options.
+
+### Formatting Reference
+
+- Headings: `# Heading 1`, `## Heading 2`, `### Heading 3`
+- Bold: `**bold**`
+- Italic: `*italic*`
+- Bold+Italic: `***bolditalic***`
+- Alignment: `[justify:center]centered text[/justify]`
 
 ### Example
 

@@ -164,10 +164,27 @@ class DemoApp:
             ("Large geometry", lambda: self._open_window("large", "Large window", RICH_TEXT, True, "800x600")),
             ("Small geometry", lambda: self._open_window("small", "Small window", RICH_TEXT, True, "320x240")),
             ("Rich fallback", lambda: self._open_window("fallback", "Rich mode + list", LIST_TEXT, True)),
+            # --- Add footer demo buttons below ---
+            ("Footer (string)", lambda: self._open_window_with_footer("footer_str", "Footer String", RICH_TEXT, True, footer="String footer!")),
+            ("Footer (callable)", lambda: self._open_window_with_footer("footer_cb", "Footer Callable", RICH_TEXT, True, footer=self._window_custom_footer)),
         ]
         for idx, (label, command) in enumerate(demos):
             row, col = divmod(idx, 4)
             ttk.Button(frame, text=label, command=command, width=18).grid(row=row, column=col, padx=5, pady=5, sticky="ew")
+
+
+    def _open_window_with_footer(self, key: str, title: str, text, rich_text: bool, geometry: str | None = None, footer=None) -> None:
+        window = self.windows.setdefault(key, TextWindow(self.root))
+        window.open_window(title=title, text=text, rich_text=rich_text, geometry=geometry)
+        # Set footer after open to ensure it's updated
+        window.configure(footer=footer)
+
+
+    def _window_custom_footer(self, parent):
+        frame = ttk.Frame(parent)
+        ttk.Label(frame, text="Custom Footer Widget", font=("", 9, "italic")).pack(side="left", padx=5)
+        ttk.Button(frame, text="Footer Btn", command=lambda: print("TextWindow footer button clicked!")).pack(side="right", padx=5)
+        return frame
 
 
     def _next_dynamic_content(self) -> None:

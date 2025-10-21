@@ -43,32 +43,42 @@ Copy `tkmarktext/` into your project.
 
 #### `TextPanel` Parameters
 
-- `master`: Parent widget.
-- `text`: String, list, or dict to display.
-- `rich_text`: Enable Markdown-like formatting (default: `True`).
-- `footer`: String or callable for footer widget.
-- `include_scrollbar`: Show scrollbar (default: `True`).
-- `**kwargs`: Additional `ttk.Frame` options (e.g., `style`, `background`).
+| Parameter           | Description                                        |
+|---------------------|----------------------------------------------------|
+| `master`            | Parent widget.                                     |
+| `text`              | String, list, or dict to display.                  |
+| `rich_text`         | Enable Markdown-like formatting (default: `True`). |
+| `footer`            | String or callable for footer widget.              |
+| `include_scrollbar` | Show scrollbar (default: `True`).                  |
+| `**kwargs`          | Additional `ttk.Frame` options.|
 
 #### `TextWindow` Parameters
 
-- `master`: Parent widget (optional).
-- `title`: Window title.
-- `geometry`: Window size (e.g., `"400x300"`).
-- `text`: Content to display.
-- `rich_text`: Enable Markdown-like formatting (default: `True`).
-- `footer`: String or callable for footer widget.
-- `include_scrollbar`: Show scrollbar (default: `True`).
-- `icon`: Window icon (optional).
-- `**kwargs`: Additional `tk.Toplevel` options.
+| Parameter           | Description                                        |
+|---------------------|----------------------------------------------------|
+| `master`            | Parent widget (optional).                          |
+| `title`             | Window title.                                      |
+| `geometry`          | Window size (e.g., `"400x300"`).                   |
+| `text`              | Content to display.                                |
+| `rich_text`         | Enable Markdown-like formatting (default: `True`). |
+| `footer`            | String or callable for footer widget.              |
+| `include_scrollbar` | Show scrollbar (default: `True`).                  |
+| `icon`              | Window icon (optional).                            |
+| `**kwargs`          | Additional `tk.Toplevel` options.                  |
 
 ### Formatting Reference
 
-- Headings: `# Heading 1`, `## Heading 2`, `### Heading 3`
-- Bold: `**bold**`
-- Italic: `*italic*`
-- Bold+Italic: `***bolditalic***`
-- Alignment: `[justify:center]centered text[/justify]`
+| Syntax                                         | Description                                      |
+|------------------------------------------------|--------------------------------------------------|
+| `# Heading 1`, `## Heading 2`, `### Heading 3` | Headings (levels 1–3)                            |
+| `**bold**`                                     | Bold                                             |
+| `*italic*`                                     | Italic                                           |
+| `***bolditalic***`                             | Bold + Italic                                    |
+| `__underline__`                                | Underline                                        |
+| `*__italicunderline__*`                        | Italic + Underline                               |
+| `**__boldunderline__**`                        | Bold + Underline                                 |
+| `***__bolditalicunderline__***`                | Bold + Italic + Underline                        |
+| `[justify:center]centered text[/justify]`      | Centered text (use `left`, `center`, or `right`) |
 
 ### Example
 

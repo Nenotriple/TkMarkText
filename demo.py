@@ -36,10 +36,14 @@ Start a line with #, ##, or ### for headings:
 **Heading 4**
 (Just bold text)
 
-Text can be made italic, bold, or both by wrapping with asterisks:
+Text can be made italic, bold, bold italic, and underlined, by wrapping with markers:
 - *italic*, *(single asterisk)*
 - **bold**, *(double asterisks)*
 - ***bold italic***, *(triple asterisks)*
+- __underline__, *(double underscore)*
+- *__italic underline__*, *(double underscore + single asterisk)*
+- **__bold underline__**, *(double underscore + double asterisks)*
+- ***__bold italic underline__***, *(double underscore + triple asterisks)*
 """
 
 

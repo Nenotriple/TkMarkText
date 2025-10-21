@@ -41,7 +41,17 @@ class _Mixin:
 
     def _configure_text_tags(self):
         """Configure text tags for headings, styles, and justification."""
-        tag_fonts = {
+        for tag, font_spec in self._tag_font_specs().items():
+            self._apply_tag_config(tag, font_spec=font_spec)
+        self.textbox.tag_config("justify_left", justify='left')
+        self.textbox.tag_config("justify_center", justify='center')
+        self.textbox.tag_config("justify_right", justify='right')
+
+
+    # new helper methods to reduce duplication
+    def _tag_font_specs(self) -> Dict[str, Tuple[Union[str, int], ...]]:
+        """Return default font tuples for all tags."""
+        return {
             "#heading":     ("", 16, "bold"),
             "##heading":    ("", 14, "bold"),
             "###heading":   ("", 12, "bold"),
@@ -49,12 +59,39 @@ class _Mixin:
             "bold":         ("", 10, "bold"),
             "italic":       ("", 10, "italic"),
             "bolditalic":   ("", 10, "bold", "italic"),
+            "underline":    ("", 10),
+            "boldunderline": ("", 10, "bold"),
+            "italicunderline": ("", 10, "italic"),
+            "bolditalicunderline": ("", 10, "bold", "italic"),
         }
-        for tag, font_spec in tag_fonts.items():
+
+
+    def _underline_tags(self) -> Tuple[str, ...]:
+        """Return tags that should have underline=True."""
+        return ("underline", "boldunderline", "italicunderline", "bolditalicunderline")
+
+
+    def _apply_tag_config(self, tag: str, font_spec: Optional[Tuple[Any, ...]] = None, family: Optional[str] = None, color: Optional[str] = None) -> None:
+        """Centralize configuring a tag's font, underline and colors.
+
+        - font_spec: set explicit font tuple
+        - family: override family while preserving size/style
+        - color: set foreground and selection colors
+        """
+        if font_spec is not None:
             self.textbox.tag_config(tag, font=font_spec)
-        self.textbox.tag_config("justify_left", justify='left')
-        self.textbox.tag_config("justify_center", justify='center')
-        self.textbox.tag_config("justify_right", justify='right')
+        # If family requested, keep size/style by modifying the existing font
+        if family:
+            current_font = self.textbox.tag_cget(tag, "font")
+            font_parts = list(self.textbox.tk.splitlist(current_font)) if current_font else ["", 10]
+            font_parts[0] = family
+            self.textbox.tag_config(tag, font=tuple(font_parts))
+        # Set color/selection colors if requested
+        if color:
+            self.textbox.tag_config(tag, foreground=color, selectbackground="#0078d7", selectforeground="white")
+        # Ensure underline is set for the defined underline tags
+        if tag in self._underline_tags():
+            self.textbox.tag_config(tag, underline=True)
 
 
     def _show_context_menu(self, event: tk.Event) -> str:
@@ -137,16 +174,8 @@ class _Mixin:
 
     def set_font(self, family: Optional[str] = None, color: Optional[str] = None) -> None:
         """Set font family and color for all text tags."""
-        tags = ["#heading", "##heading", "###heading", "bold", "italic", "bolditalic", "content"]
-        for tag in tags:
-            current_font = self.textbox.tag_cget(tag, "font")
-            font_parts = list(self.textbox.tk.splitlist(current_font)) if current_font else ["", 10]
-            if family:
-                font_parts[0] = family
-            font_tuple = tuple(font_parts)
-            self.textbox.tag_config(tag, font=font_tuple)
-            if color:
-                self.textbox.tag_config(tag, foreground=color, selectbackground="#0078d7", selectforeground="white")
+        for tag in self._tag_font_specs().keys():
+            self._apply_tag_config(tag, family=family, color=color)
 
 
 #endregion
@@ -299,55 +328,172 @@ class _Mixin:
 
 
     def _parse_style(self, text: str) -> List[Tuple[Union[str, Tuple[str, ...]], str]]:
-        """Parse bold/italic markers, matching paired markers on the same line."""
-        final_parts = []
-        bi_segments = self._find_marker_pairs(text, "***")
-        for is_bi, segment in bi_segments:
-            if is_bi:
-                final_parts.append(("bolditalic", segment))
-                continue
-            bold_segments = self._find_marker_pairs(segment, "**")
-            for is_bold, seg in bold_segments:
-                if is_bold:
-                    final_parts.append(("bold", seg))
+        """Parse bold/italic/underline markers and return mapped tag names.
+
+        Supports combined modes (boldunderline, italicunderline, bolditalicunderline)
+        and correct nesting like *__italic underline__*.
+        """
+        # Fast-path when no markers present
+        if not any(c in text for c in ("*", "_")):
+            return [("content", text)]
+        tokens, token_styles = self._style_token_definitions()
+        style_markers = self._find_style_markers(text, tokens)
+        pairs = self._pair_style_markers(style_markers, text)
+        events, skip_positions = self._build_style_events_and_skip_positions(pairs, token_styles)
+        style_to_tag_map = self._style_to_tag_map()
+
+        def style_set_to_tag(active: set) -> str:
+            return style_to_tag_map.get(frozenset(active), "content")
+
+        out_segments = self._emit_segments_from_events(text, events, skip_positions, style_set_to_tag)
+        merged = self._merge_adjacent_segments(out_segments)
+        return merged if merged else [("content", text)]
+
+
+    def _style_token_definitions(self) -> Tuple[List[str], Dict[str, set]]:
+        """Return token order and mapping of token -> styles."""
+        tokens = ["***", "**", "__", "*"]
+        token_styles = {
+            "***": {"bold", "italic"},
+            "**": {"bold"},
+            "__": {"underline"},
+            "*": {"italic"},
+        }
+        return tokens, token_styles
+
+
+    def _find_style_markers(self, text: str, tokens: List[str]) -> List[Dict[str, Any]]:
+        """Scan text and return a list of marker occurrences (pos, token, len, paired)."""
+        n = len(text)
+        style_markers: List[Dict[str, Any]] = []
+        i = 0
+        while i < n:
+            matched = None
+            for token in tokens:
+                if text.startswith(token, i):
+                    matched = token
+                    break
+            if matched:
+                style_markers.append({"pos": i, "token": matched, "len": len(matched), "paired": False})
+                i += len(matched)
+            else:
+                i += 1
+        return style_markers
+
+
+    def _pair_style_markers(self, style_markers: List[Dict[str, Any]], text: str) -> List[Tuple[Dict[str, Any], Dict[str, Any]]]:
+        """Pair opening/closing style markers, preserving nesting and skipping invalid pairs."""
+        stack: List[Dict[str, Any]] = []
+        pairs: List[Tuple[Dict[str, Any], Dict[str, Any]]] = []
+        for occ in style_markers:
+            if stack and stack[-1]["token"] == occ["token"]:
+                open_occ = stack[-1]
+                inner_start = open_occ["pos"] + open_occ["len"]
+                inner_end = occ["pos"]
+                # require non-empty inner content and no newline in-between
+                if inner_end > inner_start and "\n" not in text[inner_start:inner_end]:
+                    stack.pop()
+                    open_occ["paired"] = True
+                    occ["paired"] = True
+                    pairs.append((open_occ, occ))
                     continue
-                italic_segments = self._find_marker_pairs(seg, "*")
-                for is_italic, sub_segment in italic_segments:
-                    if sub_segment:
-                        tag = "italic" if is_italic else "content"
-                        final_parts.append((tag, sub_segment))
-        return final_parts if final_parts else [('content', text)]
+            stack.append(occ)
+        return pairs
 
 
-    def _find_marker_pairs(self, text: str, marker: str) -> List[Tuple[bool, str]]:
-        """Find paired markers and return (is_marked, segment) tuples."""
-        if marker not in text:
-            return [(False, text)]
-        marker_len = len(marker)
-        result = []
-        pos = 0
-        while pos < len(text):
-            start = text.find(marker, pos)
-            if start == -1:
-                if pos < len(text):
-                    result.append((False, text[pos:]))
-                break
-            if start > pos:
-                result.append((False, text[pos:start]))
-            close = text.find(marker, start + marker_len)
-            if close == -1:
-                result.append((False, text[start:start + marker_len]))
-                pos = start + marker_len
+    def _build_style_events_and_skip_positions(self, pairs: List[Tuple[Dict[str, Any], Dict[str, Any]]], token_styles: Dict[str, set]) -> Tuple[Dict[int, List[Tuple[str, str]]], set]:
+        """From pairs build events (add/remove) at content boundaries and collect token positions to skip."""
+        events: Dict[int, List[Tuple[str, str]]] = {}
+        skip_positions: set = set()
+        for open_occ, close_occ in pairs:
+            start_content = open_occ["pos"] + open_occ["len"]
+            end_content = close_occ["pos"]
+            # mark token characters to skip in output
+            for p in range(open_occ["pos"], open_occ["pos"] + open_occ["len"]):
+                skip_positions.add(p)
+            for p in range(close_occ["pos"], close_occ["pos"] + close_occ["len"]):
+                skip_positions.add(p)
+            # record add/remove events
+            for style in token_styles[open_occ["token"]]:
+                events.setdefault(start_content, []).append(("add", style))
+                events.setdefault(end_content, []).append(("remove", style))
+        return events, skip_positions
+
+
+    def _style_to_tag_map(self) -> Dict[frozenset, str]:
+        """Return mapping from active style set to tag name."""
+        return {
+            frozenset(): "content",
+            frozenset({"bold"}): "bold",
+            frozenset({"italic"}): "italic",
+            frozenset({"bold", "italic"}): "bolditalic",
+            frozenset({"underline"}): "underline",
+            frozenset({"bold", "underline"}): "boldunderline",
+            frozenset({"italic", "underline"}): "italicunderline",
+            frozenset({"bold", "italic", "underline"}): "bolditalicunderline",
+        }
+
+
+    def _emit_segments_from_events(self, text: str, events: Dict[int, List[Tuple[str, str]]], skip_positions: set, style_set_to_tag: Callable[[set], str]) -> List[Tuple[str, str]]:
+        """Scan text applying events and producing (tag, segment) tuples; preserves original event/flush semantics."""
+        n = len(text)
+        style_counts: Dict[str, int] = {}
+        active_set: set = set()
+        out_segments: List[Tuple[str, str]] = []
+        buf: List[str] = []
+        idx = 0
+        while idx < n:
+            if idx in events:
+                # flush current buffer with previous style
+                if buf:
+                    out_segments.append((style_set_to_tag(active_set), "".join(buf)))
+                    buf = []
+                # apply all events at this position
+                for op, style in events[idx]:
+                    if op == "add":
+                        style_counts[style] = style_counts.get(style, 0) + 1
+                    else:  # remove
+                        cnt = style_counts.get(style, 0) - 1
+                        if cnt <= 0:
+                            style_counts.pop(style, None)
+                        else:
+                            style_counts[style] = cnt
+                active_set = set(style_counts.keys())
+            # Append character unless it's part of a paired token
+            if idx not in skip_positions:
+                buf.append(text[idx])
+            idx += 1
+        # Handle any trailing events at end (e.g., closing at end) - flush if needed
+        if n in events:
+            if buf:
+                out_segments.append((style_set_to_tag(active_set), "".join(buf)))
+                buf = []
+            for op, style in events[n]:
+                if op == "add":
+                    style_counts[style] = style_counts.get(style, 0) + 1
+                else:
+                    cnt = style_counts.get(style, 0) - 1
+                    if cnt <= 0:
+                        style_counts.pop(style, None)
+                    else:
+                        style_counts[style] = cnt
+            active_set = set(style_counts.keys())
+        if buf:
+            out_segments.append((style_set_to_tag(active_set), "".join(buf)))
+        return out_segments
+
+
+    def _merge_adjacent_segments(self, segments: List[Tuple[str, str]]) -> List[Tuple[str, str]]:
+        """Merge consecutive segments with the same tag."""
+        merged: List[Tuple[str, str]] = []
+        for tag, seg in segments:
+            if not seg:
                 continue
-            segment_between = text[start + marker_len:close]
-            if '\n' in segment_between:
-                result.append((False, text[start:start + marker_len]))
-                pos = start + marker_len
-                continue
-            if segment_between:
-                result.append((True, segment_between))
-            pos = close + marker_len
-        return result if result else [(False, text)]
+            if merged and merged[-1][0] == tag:
+                merged[-1] = (tag, merged[-1][1] + seg)
+            else:
+                merged.append((tag, seg))
+        return merged
 
 
 #endregion
